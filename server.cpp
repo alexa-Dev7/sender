@@ -1,33 +1,46 @@
 #include <uwebsockets/App.h>
 #include <iostream>
-#include <unordered_map>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <nlohmann/json.hpp>
+#include <bcrypt/BCrypt.hpp>
 
-struct UserSession {
-    std::string username;
-};
+using json = nlohmann::json;
 
-std::unordered_map<std::string, UserSession> activeUsers;
+std::vector<std::pair<std::string, std::string>> users; // (username, hashed password)
+
+void loadUsers() {
+    std::ifstream file("users.json");
+    if (file.is_open()) {
+        json data;
+        file >> data;
+        for (auto &user : data) {
+            users.push_back({user["username"], user["password"]});
+        }
+    }
+}
+
+bool authenticateUser(const std::string &username, const std::string &password) {
+    for (auto &user : users) {
+        if (user.first == username && BCrypt::validatePassword(password, user.second)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 int main() {
-    uWS::App().ws<UserSession>("/*", {
-        .open = [](auto* ws) {
-            UserSession* session = ws->getUserData();
-            session->username = "User" + std::to_string(rand() % 1000);
-            activeUsers[session->username] = *session;
-            std::cout << "New connection: " << session->username << std::endl;
-        },
-        .message = [](auto* ws, std::string_view message, uWS::OpCode opCode) {
+    loadUsers();
+
+    uWS::App().ws<json>("/*", {
+        .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
             std::cout << "Received: " << message << std::endl;
             ws->send(message, opCode);
-        },
-        .close = [](auto* ws, int code, std::string_view message) {
-            UserSession* session = ws->getUserData();
-            activeUsers.erase(session->username);
-            std::cout << "Disconnected: " << session->username << std::endl;
         }
-    }).listen(9001, [](auto* token) {
+    }).listen(9001, [](auto *token) {
         if (token) {
-            std::cout << "WebSocket server started on port 9001" << std::endl;
+            std::cout << "Server started on port 9001" << std::endl;
         }
     }).run();
 
