@@ -9,7 +9,7 @@ RUN apt update && apt install -y \
     git \
     wget
 
-# Install uWebSockets manually
+# Install uWebSockets
 RUN git clone https://github.com/uNetworking/uWebSockets.git && \
     cd uWebSockets && \
     make && make install && \
@@ -28,6 +28,9 @@ COPY . /app
 
 # Compile the WebSocket server
 RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lbcrypt
+
+# Expose the port for Render
+EXPOSE 10000
 
 # Start the server
 CMD ["./server"]
