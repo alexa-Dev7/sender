@@ -7,13 +7,16 @@ RUN apt update && apt install -y \
     libssl-dev \
     cmake \
     git \
-    wget
+    wget \
+    zlib1g-dev
 
-# Install uWebSockets
+# Install uWebSockets correctly
 RUN git clone https://github.com/uNetworking/uWebSockets.git && \
     cd uWebSockets && \
-    make && make install && \
-    cd .. && rm -rf uWebSockets
+    git submodule update --init && \
+    mkdir build && cd build && \
+    cmake .. && make -j$(nproc) && make install && \
+    cd ../.. && rm -rf uWebSockets
 
 # Install JSON & bcrypt dependencies
 RUN wget https://github.com/nlohmann/json/releases/latest/download/json.hpp -O /usr/include/json.hpp
@@ -27,9 +30,9 @@ RUN git clone https://github.com/nieksand/bcrypt.git && \
 COPY . /app
 
 # Compile the WebSocket server
-RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lbcrypt
+RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lbcrypt -lpthread
 
-# Expose the port for Render
+# Expose the Render port
 EXPOSE 10000
 
 # Start the server
