@@ -1,41 +1,21 @@
 #include <iostream>
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include <thread>
+#include <cstdlib>
 
-using json = nlohmann::json;
 using namespace std;
 
-// Function to send a message
-void sendMessage(const string& sender, const string& text) {
-    ifstream file("messages.json");
-    json messages;
-
-    if (file.is_open()) {
-        file >> messages;
-        file.close();
+void runUI() {
+    int port = getenv("UI_PORT") ? stoi(getenv("UI_PORT")) : 8080;
+    cout << "UI Running on Port " << port << endl;
+    
+    while (true) {
+        cout << "UI Active..." << endl;
+        this_thread::sleep_for(chrono::seconds(5));
     }
-
-    messages["messages"].push_back({{"sender", sender}, {"text", text}});
-
-    ofstream outFile("messages.json");
-    outFile << messages.dump(4);  // Save with indentation
-    outFile.close();
 }
 
 int main() {
-    cout << "Simple UI Started!" << endl;
-    string sender, text;
-
-    while (true) {
-        cout << "Enter sender name: ";
-        getline(cin, sender);
-
-        cout << "Enter message: ";
-        getline(cin, text);
-
-        sendMessage(sender, text);
-        cout << "Message sent!" << endl;
-    }
-
+    thread uiThread(runUI);
+    uiThread.join();
     return 0;
 }
