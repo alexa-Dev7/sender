@@ -1,32 +1,26 @@
 # Use Debian as base image
 FROM debian:latest
 
-# Update package lists and install necessary dependencies
+# Update and install dependencies
 RUN apt update && apt install -y \
-    g++ cmake make libssl-dev zlib1g-dev git curl
+    g++ cmake make libssl-dev zlib1g-dev git curl pkg-config
 
-# Install uWebSockets (for WebSocket server)
-RUN git clone https://github.com/uNetworking/uWebSockets && \
-    cd uWebSockets && make && make install && \
-    cd .. && rm -rf uWebSockets
+# Manually install uWebSockets from source
+RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
+    cd uWebSockets && mkdir build && cd build && \
+    cmake .. && make && make install && \
+    cd ../.. && rm -rf uWebSockets
 
-# Install Crow (for web UI in C++)
-RUN git clone --recursive https://github.com/ipkn/crow.git && \
-    cd crow && mkdir build && cd build && cmake .. && make && \
-    cd ../.. && rm -rf crow
-
-# Copy C++ source files to container
+# Copy source files
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
+COPY users.json /users.json  # Only keeping users.json, removed messages.json
 
-# Copy JSON files for storing user & message data
-COPY users.json /users.json
-
-# Compile the WebSocket server
+# Compile WebSocket server
 RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
 
-# Compile the UI server
-RUN g++ -std=c++17 -o ui UI.cpp -I/usr/local/include -L/usr/local/lib -lcrow -lssl -lz -lpthread
+# Compile UI server
+RUN g++ -std=c++17 -o ui ui.cpp -I/usr/local/include -L/usr/local/lib -lcrow -lssl -lz -lpthread
 
 # Expose necessary ports
 EXPOSE 9001 8080
