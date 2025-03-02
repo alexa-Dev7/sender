@@ -19,8 +19,8 @@ RUN g++ -std=c++17 -o server server.cpp -lssl -lz
 # Compile UI server
 RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz -lpthread
 
-# Expose ports
-EXPOSE 9001 8080
+# Expose dynamic Render port
+EXPOSE 10000
 
 # Load environment variables and start both servers
-CMD export $(cat .env | xargs) && ./server & ./ui
+CMD export $(cat .env | xargs) && ./server
