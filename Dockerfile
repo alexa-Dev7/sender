@@ -17,7 +17,10 @@ RUN git clone --recursive https://github.com/ipkn/crow.git && \
 
 # Copy C++ source files to container
 COPY server.cpp /server.cpp
-COPY UI.cpp /UI.cpp
+COPY ui.cpp /ui.cpp
+
+# Copy JSON files for storing user & message data
+COPY users.json /users.json
 
 # Compile the WebSocket server
 RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
