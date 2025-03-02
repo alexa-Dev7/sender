@@ -1,6 +1,3 @@
 {
-    "messages": [
-        {"sender": "John", "text": "Hello!"},
-        {"sender": "Jane", "text": "Hey, how are you?"}
-    ]
+    "messages": []
 }
