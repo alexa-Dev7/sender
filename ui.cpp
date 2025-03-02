@@ -1,21 +1,41 @@
-#include "sciter-x.h"
-#include "sciter-x-window.hpp"
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
-class MessengerUI : public sciter::window {
-public:
-    MessengerUI() : window(SW_MAIN | SW_RESIZEABLE) {}
-};
+using json = nlohmann::json;
+using namespace std;
+
+// Function to send a message
+void sendMessage(const string& sender, const string& text) {
+    ifstream file("messages.json");
+    json messages;
+
+    if (file.is_open()) {
+        file >> messages;
+        file.close();
+    }
+
+    messages["messages"].push_back({{"sender", sender}, {"text", text}});
+
+    ofstream outFile("messages.json");
+    outFile << messages.dump(4);  // Save with indentation
+    outFile.close();
+}
 
 int main() {
-    MessengerUI ui;
-    ui.load_html(R"(
-        <window>
-            <div style='background: #0084FF; color: white; padding: 10px; font-size: 20px;'>Messenger</div>
-            <div id='chatbox' style='height: 400px; overflow-y: auto; padding: 10px;'></div>
-            <input id='message' style='width: 80%;' />
-            <button id='send' style='width: 18%;'>Send</button>
-        </window>
-    )", nullptr);
-    ui.run();
+    cout << "Simple UI Started!" << endl;
+    string sender, text;
+
+    while (true) {
+        cout << "Enter sender name: ";
+        getline(cin, sender);
+
+        cout << "Enter message: ";
+        getline(cin, text);
+
+        sendMessage(sender, text);
+        cout << "Message sent!" << endl;
+    }
+
     return 0;
 }
