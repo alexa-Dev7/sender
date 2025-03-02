@@ -1,27 +1,32 @@
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <uwebsockets/App.h>
+#include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
 using namespace std;
 
-#define UI_PORT 8080
+const string MESSAGES_FILE = "messages.json";
 
-string loadHTML() {
-    ifstream file("index.html");
-    return string((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+// Function to display chat messages
+void displayMessages() {
+    ifstream file(MESSAGES_FILE);
+    if (!file.is_open()) {
+        cout << "No messages yet." << endl;
+        return;
+    }
+    
+    json messages;
+    file >> messages;
+
+    cout << "=== Chat Messages ===" << endl;
+    for (const auto& msg : messages) {
+        cout << msg["sender"] << ": " << msg["message"] << endl;
+    }
+    cout << "=====================" << endl;
 }
 
 int main() {
-    string html = loadHTML();
-
-    uWS::App().get("/*", [&html](auto *res, auto *req) {
-        res->end(html);
-    }).listen(UI_PORT, [](auto *token) {
-        if (token) {
-            cout << "UI running on port " << UI_PORT << endl;
-        } else {
-            cerr << "Failed to start UI" << endl;
-        }
-    }).run();
+    cout << "Welcome to the Chat UI!" << endl;
+    displayMessages();
+    return 0;
 }
