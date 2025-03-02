@@ -1,60 +1,46 @@
 #include <iostream>
+#include <uwebsockets/App.h>
+#include <nlohmann/json.hpp>
 #include <fstream>
-#include <thread>
-#include <chrono>
-#include <cstdlib>
-#include <nlohmann/json.hpp>  
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include <vector>
 
-using json = nlohmann::json;
 using namespace std;
+using json = nlohmann::json;
 
-json readMessages() {
+#define SERVER_PORT 10000
+
+vector<string> messages;
+
+// Load messages from JSON
+void loadMessages() {
     ifstream file("messages.json");
-    json messages;
-    if (file.is_open()) {
-        file >> messages;
-        file.close();
+    if (file) {
+        json j;
+        file >> j;
+        messages = j["messages"].get<vector<string>>();
     }
-    return messages;
 }
 
-void startServer(int port) {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == 0) {
-        cerr << "Socket creation failed!" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
-
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        cerr << "Binding failed!" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    listen(server_fd, 3);
-    cout << "Server listening on port " << port << endl;
-
-    while (true) {
-        json messages = readMessages();
-        cout << "Checking for new messages..." << endl;
-
-        for (const auto& msg : messages["messages"]) {
-            cout << "New Message from " << msg["sender"] << ": " << msg["text"] << endl;
-        }
-
-        this_thread::sleep_for(chrono::seconds(3));
-    }
+// Save messages to JSON
+void saveMessages() {
+    ofstream file("messages.json");
+    json j;
+    j["messages"] = messages;
+    file << j.dump(4);
 }
 
 int main() {
-    int port = getenv("PORT") ? stoi(getenv("PORT")) : 10000;  // Default to 10000
-    startServer(port);
-    return 0;
+    loadMessages();
+
+    uWS::App().ws<"/*">([](auto *ws, auto *req) {
+        ws->send("Connected to WebSocket server");
+    }).listen(SERVER_PORT, [](auto *token) {
+        if (token) {
+            cout << "Server running on port " << SERVER_PORT << endl;
+        } else {
+            cerr << "Failed to start server" << endl;
+        }
+    }).run();
+
+    saveMessages();
 }
