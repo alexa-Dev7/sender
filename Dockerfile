@@ -4,6 +4,9 @@ FROM debian:latest
 # Install dependencies
 RUN apt update && apt install -y g++ cmake make libssl-dev zlib1g-dev git curl pkg-config
 
+# Install nlohmann/json library
+RUN apt install -y nlohmann-json3-dev
+
 # Set working directory
 WORKDIR /app
 
