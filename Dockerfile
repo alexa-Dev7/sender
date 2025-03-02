@@ -8,6 +8,7 @@ RUN apt update && apt install -y g++ cmake make libssl-dev zlib1g-dev git curl p
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
 COPY messages.json /messages.json
+COPY .env /app/.env  # Copy environment variables
 
 # Compile Short Polling server
 RUN g++ -std=c++17 -o server server.cpp -lssl -lz
@@ -18,5 +19,5 @@ RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz -lpthread
 # Expose ports
 EXPOSE 9001 8080
 
-# Run both servers
-CMD ./server & ./ui
+# Run both servers with environment variables
+CMD export $(cat /app/.env | xargs) && ./server & ./ui
