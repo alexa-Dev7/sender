@@ -5,16 +5,19 @@ FROM debian:latest
 RUN apt update && apt install -y \
     g++ cmake make libssl-dev zlib1g-dev git curl pkg-config
 
-# Manually install uWebSockets from source
+# Install uWebSockets from source
 RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
     cd uWebSockets && mkdir build && cd build && \
     cmake .. && make && make install && \
     cd ../.. && rm -rf uWebSockets
 
+# Ensure users.json exists before copying
+RUN touch users.json
+
 # Copy source files
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
-COPY users.json /users.json  # Ensure this file exists before building
+COPY users.json /users.json
 
 # Compile WebSocket server
 RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
