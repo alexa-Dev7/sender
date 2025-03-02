@@ -14,7 +14,7 @@ RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
 # Copy source files
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
-COPY users.json /users.json  # Only keeping users.json, removed messages.json
+COPY users.json /users.json  # Ensure this file exists before building
 
 # Compile WebSocket server
 RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
