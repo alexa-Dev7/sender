@@ -1,52 +1,36 @@
-#include <uwebsockets/App.h>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <vector>
-#include <cstdlib>  // For getenv()
-#include <nlohmann/json.hpp>
-#include <bcrypt/BCrypt.hpp>
+#include <thread>
+#include <chrono>
+#include <nlohmann/json.hpp>  // JSON library for handling messages
 
 using json = nlohmann::json;
+using namespace std;
 
-std::vector<std::pair<std::string, std::string>> users;
-
-void loadUsers() {
-    std::ifstream file("users.json");
+// Function to read messages from JSON
+json readMessages() {
+    ifstream file("messages.json");
+    json messages;
     if (file.is_open()) {
-        json data;
-        file >> data;
-        for (auto &user : data) {
-            users.push_back({user["username"], user["password"]});
-        }
+        file >> messages;
+        file.close();
     }
-}
-
-bool authenticateUser(const std::string &username, const std::string &password) {
-    for (auto &user : users) {
-        if (user.first == username && BCrypt::validatePassword(password, user.second)) {
-            return true;
-        }
-    }
-    return false;
+    return messages;
 }
 
 int main() {
-    loadUsers();
+    cout << "Short Polling Server Started on Port 9001!" << endl;
 
-    // Get Render-assigned port (default to 9001 if not set)
-    int port = getenv("PORT") ? std::stoi(getenv("PORT")) : 9001;
+    while (true) {
+        json messages = readMessages();
+        cout << "Checking for new messages..." << endl;
 
-    uWS::App().ws<json>("/*", {
-        .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
-            std::cout << "Received: " << message << std::endl;
-            ws->send(message, opCode);
+        for (const auto& msg : messages["messages"]) {
+            cout << "New Message from " << msg["sender"] << ": " << msg["text"] << endl;
         }
-    }).listen(port, [port](auto *token) {
-        if (token) {
-            std::cout << "Server started on port " << port << std::endl;
-        }
-    }).run();
+
+        this_thread::sleep_for(chrono::seconds(3));  // Poll every 3 seconds
+    }
 
     return 0;
 }
