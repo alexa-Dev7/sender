@@ -2,7 +2,8 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
-#include <nlohmann/json.hpp>  // JSON library for handling messages
+#include <cstdlib>  // For getenv()
+#include <nlohmann/json.hpp>  
 
 using json = nlohmann::json;
 using namespace std;
@@ -19,7 +20,11 @@ json readMessages() {
 }
 
 int main() {
-    cout << "Short Polling Server Started on Port 9001!" << endl;
+    // Load environment variables
+    int port = getenv("SERVER_PORT") ? stoi(getenv("SERVER_PORT")) : 9001;
+    int pollInterval = getenv("POLL_INTERVAL") ? stoi(getenv("POLL_INTERVAL")) : 3;
+
+    cout << "Short Polling Server Started on Port " << port << "!" << endl;
 
     while (true) {
         json messages = readMessages();
@@ -29,7 +34,7 @@ int main() {
             cout << "New Message from " << msg["sender"] << ": " << msg["text"] << endl;
         }
 
-        this_thread::sleep_for(chrono::seconds(3));  // Poll every 3 seconds
+        this_thread::sleep_for(chrono::seconds(pollInterval));  // Use env variable for interval
     }
 
     return 0;
