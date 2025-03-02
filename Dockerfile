@@ -1,33 +1,26 @@
 # Use an official lightweight C++ image
-FROM debian:latest
+FROM gcc:latest
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    g++ cmake make git \
-    libssl-dev zlib1g-dev
+# Set environment variables
+ENV SERVER_PORT=10000
 
-# Set working directory
-WORKDIR /app
+# Install required libraries
+RUN apt-get update && apt-get install -y cmake make g++
 
-# Clone uWebSockets manually
-RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
-    cd uWebSockets && mkdir build && cd build && \
-    cmake .. && make && make install && \
-    cd ../.. && rm -rf uWebSockets
+# Install nlohmann/json (JSON library)
+RUN git clone https://github.com/nlohmann/json.git && \
+    cd json && mkdir build && cd build && cmake .. && make && make install
 
-# Copy C++ source files to container
-COPY server.cpp /app/server.cpp
-COPY ui.cpp /app/ui.cpp
-COPY messages.json /app/messages.json
-COPY users.json /app/users.json
+# Copy source files
+COPY server.cpp /server.cpp
+COPY ui.cpp /ui.cpp
 
-# Compile the WebSocket server and UI
-RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
-RUN g++ -std=c++17 -o ui ui.cpp -luWS -lssl -lz
+# Compile the C++ files
+RUN g++ -std=c++17 -o server server.cpp -lssl -lz
+RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz
 
-# Expose ports
-EXPOSE 10000  # Server port
-EXPOSE 8080   # UI port
+# Expose the chat server port
+EXPOSE 10000
 
 # Run the server
 CMD ["./server"]
