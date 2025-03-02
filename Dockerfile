@@ -1,39 +1,32 @@
-FROM ubuntu:latest
-WORKDIR /app
+# Use Debian as base image
+FROM debian:latest
 
-# Install required dependencies
+# Update package lists and install necessary dependencies
 RUN apt update && apt install -y \
-    build-essential \
-    libssl-dev \
-    cmake \
-    git \
-    wget \
-    zlib1g-dev
+    g++ cmake make libssl-dev zlib1g-dev git curl
 
-# Install uWebSockets correctly
-RUN git clone https://github.com/uNetworking/uWebSockets.git && \
-    cd uWebSockets && \
-    git submodule update --init && \
-    mkdir build && cd build && \
-    cmake .. && make -j$(nproc) && make install && \
-    cd ../.. && rm -rf uWebSockets
+# Install uWebSockets (for WebSocket server)
+RUN git clone https://github.com/uNetworking/uWebSockets && \
+    cd uWebSockets && make && make install && \
+    cd .. && rm -rf uWebSockets
 
-# Install JSON & bcrypt dependencies
-RUN wget https://github.com/nlohmann/json/releases/latest/download/json.hpp -O /usr/include/json.hpp
-RUN git clone https://github.com/nieksand/bcrypt.git && \
-    cd bcrypt && \
-    make && cp bcrypt.a /usr/local/lib && \
-    cp bcrypt.hpp /usr/local/include && \
-    cd .. && rm -rf bcrypt
+# Install Crow (for web UI in C++)
+RUN git clone --recursive https://github.com/ipkn/crow.git && \
+    cd crow && mkdir build && cd build && cmake .. && make && \
+    cd ../.. && rm -rf crow
 
-# Copy all project files to the container
-COPY . /app
+# Copy C++ source files to container
+COPY server.cpp /server.cpp
+COPY UI.cpp /UI.cpp
 
 # Compile the WebSocket server
-RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lbcrypt -lpthread
+RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz
 
-# Expose the Render port
-EXPOSE 10000
+# Compile the UI server
+RUN g++ -std=c++17 -o ui UI.cpp -I/usr/local/include -L/usr/local/lib -lcrow -lssl -lz -lpthread
 
-# Start the server
-CMD ["./server"]
+# Expose necessary ports
+EXPOSE 9001 8080
+
+# Start both servers
+CMD ./server & ./ui
