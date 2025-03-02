@@ -1,46 +1,67 @@
 #include <iostream>
-#include <uwebsockets/App.h>
-#include <nlohmann/json.hpp>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <vector>
+#include <thread>
+#include <chrono>
 
-using namespace std;
 using json = nlohmann::json;
+using namespace std;
 
-#define SERVER_PORT 10000
+const string MESSAGES_FILE = "messages.json";
+const int POLL_INTERVAL = 3; // Polling every 3 seconds
 
-vector<string> messages;
+// Function to load messages from file
+json loadMessages() {
+    ifstream file(MESSAGES_FILE);
+    if (!file.is_open()) return json::array();
+    
+    json messages;
+    file >> messages;
+    return messages;
+}
 
-// Load messages from JSON
-void loadMessages() {
-    ifstream file("messages.json");
-    if (file) {
-        json j;
-        file >> j;
-        messages = j["messages"].get<vector<string>>();
+// Function to save messages to file
+void saveMessage(const string& sender, const string& message) {
+    json messages = loadMessages();
+    json newMessage = {{"sender", sender}, {"message", message}};
+    messages.push_back(newMessage);
+
+    ofstream file(MESSAGES_FILE);
+    file << messages.dump(4);
+}
+
+// Simulated short polling function
+void pollMessages() {
+    json lastMessages = loadMessages();
+    
+    while (true) {
+        this_thread::sleep_for(chrono::seconds(POLL_INTERVAL));
+        json currentMessages = loadMessages();
+        
+        if (currentMessages != lastMessages) {
+            cout << "New message received!" << endl;
+            lastMessages = currentMessages;
+        }
     }
 }
 
-// Save messages to JSON
-void saveMessages() {
-    ofstream file("messages.json");
-    json j;
-    j["messages"] = messages;
-    file << j.dump(4);
-}
-
 int main() {
-    loadMessages();
+    cout << "Chat server running on port 10000..." << endl;
+    
+    thread pollingThread(pollMessages);
+    pollingThread.detach();
 
-    uWS::App().ws<"/*">([](auto *ws, auto *req) {
-        ws->send("Connected to WebSocket server");
-    }).listen(SERVER_PORT, [](auto *token) {
-        if (token) {
-            cout << "Server running on port " << SERVER_PORT << endl;
-        } else {
-            cerr << "Failed to start server" << endl;
-        }
-    }).run();
+    while (true) {
+        string sender, message;
+        cout << "Enter your name: ";
+        getline(cin, sender);
+        cout << "Enter message: ";
+        getline(cin, message);
 
-    saveMessages();
+        saveMessage(sender, message);
+        cout << "Message sent!" << endl;
+    }
+
+    return 0;
 }
