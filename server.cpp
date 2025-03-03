@@ -11,24 +11,48 @@ using namespace std;
 const string MESSAGES_FILE = "messages.json";
 const int POLL_INTERVAL = 3; // Polling every 3 seconds
 
-// Function to load messages from file
+// Function to ensure messages.json is initialized
+void initializeMessagesFile() {
+    ifstream file(MESSAGES_FILE);
+    if (!file.is_open()) {
+        // If file does not exist, create it with empty array
+        ofstream newFile(MESSAGES_FILE);
+        newFile << "[]";
+        newFile.close();
+    } else {
+        // Check if file is empty
+        file.seekg(0, ios::end);
+        if (file.tellg() == 0) {
+            ofstream newFile(MESSAGES_FILE);
+            newFile << "[]";
+            newFile.close();
+        }
+    }
+}
+
+// Function to load messages safely
 json loadMessages() {
     ifstream file(MESSAGES_FILE);
     if (!file.is_open()) return json::array();
     
     json messages;
-    file >> messages;
+    try {
+        file >> messages;
+    } catch (json::parse_error& e) {
+        cerr << "JSON Parse Error: " << e.what() << endl;
+        return json::array(); // Return empty array on parse error
+    }
     return messages;
 }
 
-// Function to save messages to file
+// Function to save a new message
 void saveMessage(const string& sender, const string& message) {
     json messages = loadMessages();
     json newMessage = {{"sender", sender}, {"message", message}};
     messages.push_back(newMessage);
 
     ofstream file(MESSAGES_FILE);
-    file << messages.dump(4);
+    file << messages.dump(4); // Pretty print JSON
 }
 
 // Simulated short polling function
@@ -48,7 +72,10 @@ void pollMessages() {
 
 int main() {
     cout << "Chat server running on port 10000..." << endl;
-    
+
+    // Ensure messages.json is properly initialized
+    initializeMessagesFile();
+
     thread pollingThread(pollMessages);
     pollingThread.detach();
 
