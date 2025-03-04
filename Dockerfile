@@ -5,15 +5,24 @@ FROM gcc:latest
 ENV SERVER_PORT=10000
 
 # Install required libraries
-RUN apt-get update && apt-get install -y cmake make g++
+RUN apt-get update && apt-get install -y \
+    cmake \
+    make \
+    g++ \
+    git \
+    libssl-dev \
+    wget
 
-# Install nlohmann/json (JSON library)
-RUN git clone https://github.com/nlohmann/json.git && \
-    cd json && mkdir build && cd build && cmake .. && make && make install
+# Install nlohmann/json (Download json.hpp instead of cloning)
+RUN mkdir -p /app && cd /app && \
+    wget https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp -O json.hpp
+
+# Set working directory
+WORKDIR /app
 
 # Copy source files
-COPY server.cpp /server.cpp
-COPY ui.cpp /ui.cpp
+COPY server.cpp /app/server.cpp
+COPY ui.cpp /app/ui.cpp
 
 # Compile the C++ files
 RUN g++ -std=c++17 -o server server.cpp -lssl -lz
