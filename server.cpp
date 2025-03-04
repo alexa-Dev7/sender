@@ -1,95 +1,62 @@
 #include <iostream>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <vector>
-#include <thread>
-#include <chrono>
+#include <string>
+#include <nlohmann/json.hpp>
+#include <uwebsockets/App.h>
+
+#define PORT 10000  // Render requires port 10000
 
 using json = nlohmann::json;
-using namespace std;
+std::vector<json> messages;
 
-const string MESSAGES_FILE = "messages.json";
-const int POLL_INTERVAL = 3; // Polling every 3 seconds
-
-// Function to ensure messages.json is initialized
-void initializeMessagesFile() {
-    ifstream file(MESSAGES_FILE);
-    if (!file.is_open() || file.peek() == ifstream::traits_type::eof()) {
-        // If file does not exist or is empty, create it with an empty JSON array
-        ofstream newFile(MESSAGES_FILE);
-        newFile << "[]";
-        newFile.close();
-    }
-}
-
-// Function to safely load messages
-json loadMessages() {
-    ifstream file(MESSAGES_FILE);
-    if (!file.is_open()) return json::array();
-
-    json messages;
-    try {
-        file >> messages;
-    } catch (json::parse_error&) {
-        // If JSON is invalid, reset file to empty array
-        cerr << "⚠️ JSON Parse Error: Resetting messages.json" << endl;
-        ofstream resetFile(MESSAGES_FILE);
-        resetFile << "[]";
-        resetFile.close();
-        return json::array();
-    }
-    return messages;
-}
-
-// Function to save a new message
-void saveMessage(const string& sender, const string& message) {
-    json messages = loadMessages();
-    json newMessage = {{"sender", sender}, {"message", message}};
-    messages.push_back(newMessage);
-
-    ofstream file(MESSAGES_FILE);
-    file << messages.dump(4); // Pretty print JSON
-}
-
-// Simulated short polling function (runs in a separate thread)
-void pollMessages() {
-    json lastMessages = loadMessages();
-
-    while (true) {
-        this_thread::sleep_for(chrono::seconds(POLL_INTERVAL));
-        json currentMessages = loadMessages();
-
-        if (currentMessages != lastMessages) {
-            cout << "\n📩 New messages received!" << endl;
-            lastMessages = currentMessages;
+// Function to load messages from JSON file
+void loadMessages() {
+    std::ifstream file("messages.json");
+    if (file.peek() != std::ifstream::traits_type::eof()) {
+        try {
+            file >> messages;
+        } catch (...) {
+            std::cerr << "⚠️ JSON Parse Error: Resetting messages.json\n";
+            messages.clear();
         }
     }
 }
 
+// Function to save messages to JSON file
+void saveMessages() {
+    std::ofstream file("messages.json");
+    file << messages.dump(4);
+}
+
 int main() {
-    cout << "🚀 Chat server running on port 10000..." << endl;
+    loadMessages();
 
-    // Ensure messages.json is properly initialized
-    initializeMessagesFile();
+    uWS::App().ws<json>("/*", {
+        .open = [](auto *ws) {
+            std::cout << "✅ Client Connected\n";
+        },
+        .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
+            try {
+                json receivedMessage = json::parse(message);
+                messages.push_back(receivedMessage);
+                saveMessages();
 
-    // Start polling in a separate thread
-    thread pollingThread(pollMessages);
-    pollingThread.detach();
+                ws->send("✅ Message received!", opCode);
+            } catch (...) {
+                ws->send("⚠️ JSON Parse Error", opCode);
+            }
+        },
+        .close = [](auto *ws, int code, std::string_view message) {
+            std::cout << "❌ Client Disconnected\n";
+        }
+    }).listen(PORT, [](auto *token) {
+        if (token) {
+            std::cout << "🚀 Server running on port " << PORT << "\n";
+        } else {
+            std::cerr << "❌ Failed to start server!\n";
+        }
+    }).run();
 
-    while (true) {
-        string sender, message;
-        cout << "\nEnter your name (or type 'exit' to quit): ";
-        getline(cin, sender);
-        if (sender == "exit") break;
-
-        cout << "Enter message (or type 'exit' to quit): ";
-        getline(cin, message);
-        if (message == "exit") break;
-
-        saveMessage(sender, message);
-        cout << "✅ Message sent!" << endl;
-    }
-
-    cout << "👋 Server shutting down..." << endl;
     return 0;
 }
