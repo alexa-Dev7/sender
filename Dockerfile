@@ -5,29 +5,30 @@ FROM gcc:latest
 ENV SERVER_PORT=10000
 ENV UI_PORT=8080
 
-# Install required libraries
-RUN apt-get update && apt-get install -y cmake make g++ git
+# Install required packages
+RUN apt-get update && apt-get install -y cmake make g++ git libssl-dev zlib1g-dev
 
-# Install nlohmann/json (JSON library) properly
+# Clone and build uWebSockets manually
+RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
+    cd uWebSockets && \
+    make && make install && \
+    cd .. && rm -rf uWebSockets
+
+# Install nlohmann/json (JSON library)
 RUN git clone https://github.com/nlohmann/json.git && \
-    cd json && mkdir build && cd build && cmake .. && make && make install && \
-    cd ../.. && rm -rf json
-
-# Ensure the library is available
-RUN mkdir -p /usr/include/nlohmann && \
-    cp /usr/local/include/nlohmann/json.hpp /usr/include/nlohmann/
+    cd json && mkdir build && cd build && cmake .. && make && make install
 
 # Copy source files
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
 
-# Compile the C++ files
-RUN g++ -std=c++17 -o server server.cpp -lssl -lz
-RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz
+# Compile the C++ files (now linking uWebSockets properly)
+RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lpthread
+RUN g++ -std=c++17 -o ui ui.cpp -luWS -lssl -lz -lpthread
 
-# Expose the chat server and UI ports
+# Expose the correct ports for server and UI
 EXPOSE 10000
 EXPOSE 8080
 
-# Run the server
-CMD ["./server"]
+# Run the server and UI
+CMD ./server & ./ui
