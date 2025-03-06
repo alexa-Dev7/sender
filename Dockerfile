@@ -8,8 +8,9 @@ ENV UI_PORT=8080
 # Install required libraries
 RUN apt-get update && apt-get install -y cmake make g++ curl unzip
 
-# Install nlohmann/json (JSON library)
-RUN curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
+# Create directory for nlohmann/json and install it
+RUN mkdir -p /usr/include/nlohmann && \
+    curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
 
 # Copy source files
 COPY server.cpp /server.cpp
