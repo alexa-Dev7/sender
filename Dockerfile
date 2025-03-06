@@ -5,30 +5,23 @@ FROM gcc:latest
 ENV SERVER_PORT=10000
 ENV UI_PORT=8080
 
-# Install required packages
-RUN apt-get update && apt-get install -y cmake make g++ git libssl-dev zlib1g-dev
-
-# Clone and build uWebSockets manually
-RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git && \
-    cd uWebSockets && \
-    make && make install && \
-    cd .. && rm -rf uWebSockets
+# Install required libraries
+RUN apt-get update && apt-get install -y cmake make g++ curl unzip
 
 # Install nlohmann/json (JSON library)
-RUN git clone https://github.com/nlohmann/json.git && \
-    cd json && mkdir build && cd build && cmake .. && make && make install
+RUN curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
 
 # Copy source files
 COPY server.cpp /server.cpp
 COPY ui.cpp /ui.cpp
 
-# Compile the C++ files (now linking uWebSockets properly)
-RUN g++ -std=c++17 -o server server.cpp -luWS -lssl -lz -lpthread
-RUN g++ -std=c++17 -o ui ui.cpp -luWS -lssl -lz -lpthread
+# Compile the C++ files
+RUN g++ -std=c++17 -o server server.cpp -lssl -lz
+RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz
 
-# Expose the correct ports for server and UI
+# Expose the correct ports
 EXPOSE 10000
 EXPOSE 8080
 
-# Run the server and UI
-CMD ./server & ./ui
+# Run the server
+CMD ["./server"]
