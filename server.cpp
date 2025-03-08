@@ -1,70 +1,80 @@
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
-#include <uwebsockets/App.h>
-#include <cstdlib>  // For getenv()
+#include <unistd.h>
+#include <ctime>
 
-using namespace std;
 using json = nlohmann::json;
+using namespace std;
 
-const string MESSAGES_FILE = "messages.json";
+struct Message {
+    string sender;
+    string text;
+    time_t timestamp;
+};
 
-// Read messages from JSON
-json readMessages() {
-    ifstream file(MESSAGES_FILE);
-    json messages;
-    if (file.is_open()) {
-        try {
-            file >> messages;
-        } catch (json::parse_error& e) {
-            messages = json::array();
+// Function to load messages from JSON file
+vector<Message> loadMessages() {
+    vector<Message> messages;
+    ifstream file("messages.json");
+    if (file) {
+        json j;
+        file >> j;
+        for (const auto& item : j) {
+            messages.push_back({item["sender"], item["text"], item["timestamp"]});
         }
     }
     return messages;
 }
 
-// Write messages to JSON
-void writeMessages(const json& messages) {
-    ofstream file(MESSAGES_FILE);
-    if (file.is_open()) {
-        file << messages.dump(4);
+// Function to save messages to JSON file
+void saveMessage(const Message& msg) {
+    vector<Message> messages = loadMessages();
+    messages.push_back(msg);
+
+    json j = json::array();
+    for (const auto& m : messages) {
+        j.push_back({{"sender", m.sender}, {"text", m.text}, {"timestamp", m.timestamp}});
+    }
+
+    ofstream file("messages.json");
+    file << j.dump(4);
+}
+
+// Function to simulate HTTP requests
+void handleRequest() {
+    string command;
+    while (true) {
+        cout << "Enter command (messages/send): ";
+        cin >> command;
+
+        if (command == "messages") {
+            vector<Message> messages = loadMessages();
+            for (const auto& msg : messages) {
+                cout << msg.sender << ": " << msg.text << " (" << msg.timestamp << ")\n";
+            }
+        } else if (command == "send") {
+            string sender, text;
+            cout << "Enter sender name: ";
+            cin >> sender;
+            cout << "Enter message: ";
+            cin.ignore();
+            getline(cin, text);
+
+            Message msg = {sender, text, time(nullptr)};
+            saveMessage(msg);
+            cout << "Message sent successfully!\n";
+        }
+
+        // Short polling: refresh every 3 seconds
+        sleep(3);
     }
 }
 
 int main() {
-    // Get port from environment variable (Render sets this)
-    int port = getenv("PORT") ? stoi(getenv("PORT")) : 10000;
-
-    uWS::App()
-    .get("/messages", [](auto *res, auto *req) {
-        json messages = readMessages();
-        res->writeHeader("Content-Type", "application/json");
-        res->end(messages.dump());
-    })
-    .post("/send", [](auto *res, auto *req) {
-        res->onData([res](std::string_view data, bool last) {
-            json received = json::parse(data);
-            json messages = readMessages();
-
-            json newMessage = {
-                {"sender", received["sender"]},
-                {"text", received["text"]}
-            };
-            messages.push_back(newMessage);
-            writeMessages(messages);
-
-            res->writeHeader("Content-Type", "application/json");
-            res->end(R"({"status": "Message sent!"})");
-        });
-    })
-    .listen(port, [port](auto *token) {
-        if (token) {
-            cout << "Server running on port " << port << "..." << endl;
-        } else {
-            cerr << "Failed to bind to port " << port << endl;
-        }
-    })
-    .run();
-    
+    cout << "Starting short polling server...\n";
+    handleRequest();
     return 0;
 }
