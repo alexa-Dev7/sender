@@ -1,16 +1,16 @@
-# Use an official lightweight C++ image
+# Use a base image with C++
 FROM gcc:latest
 
 # Set environment variables
-ENV SERVER_PORT=10000
+ENV SERVER_PORT=9001
 ENV UI_PORT=8080
 
-# Install required libraries
-RUN apt-get update && apt-get install -y cmake make g++ curl unzip
+# Install dependencies
+RUN apt-get update && apt-get install -y cmake make g++
 
-# Create directory for nlohmann/json and install it
-RUN mkdir -p /usr/include/nlohmann && \
-    curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
+# Install nlohmann/json
+RUN git clone https://github.com/nlohmann/json.git && \
+    cd json && mkdir build && cd build && cmake .. && make && make install
 
 # Copy source files
 COPY server.cpp /server.cpp
@@ -20,9 +20,9 @@ COPY ui.cpp /ui.cpp
 RUN g++ -std=c++17 -o server server.cpp -lssl -lz
 RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz
 
-# Expose the correct ports
-EXPOSE 10000
+# Expose the ports
+EXPOSE 9001
 EXPOSE 8080
 
-# Run the server
+# Start the server
 CMD ["./server"]
