@@ -1,15 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <ctime>
-#include <string>
+#include <uwebsockets/App.h>
 
 using namespace std;
 using json = nlohmann::json;
 
 const string MESSAGES_FILE = "messages.json";
 
-// Function to read messages from JSON
+// Read messages from JSON
 json readMessages() {
     ifstream file(MESSAGES_FILE);
     json messages;
@@ -17,13 +16,13 @@ json readMessages() {
         try {
             file >> messages;
         } catch (json::parse_error& e) {
-            messages = json::array(); // Reset on error
+            messages = json::array();
         }
     }
     return messages;
 }
 
-// Function to write messages to JSON
+// Write messages to JSON
 void writeMessages(const json& messages) {
     ofstream file(MESSAGES_FILE);
     if (file.is_open()) {
@@ -31,46 +30,35 @@ void writeMessages(const json& messages) {
     }
 }
 
-// Handle GET /messages (returns stored messages)
-void handleMessagesRequest() {
-    json messages = readMessages();
-    cout << "Content-Type: application/json\n\n";
-    cout << messages.dump();
-}
-
-// Handle POST /send (adds a new message)
-void handleSendMessage() {
-    string sender, message;
-    cout << "Enter your name: ";
-    getline(cin, sender);
-    cout << "Enter your message: ";
-    getline(cin, message);
-
-    json messages = readMessages();
-    json newMessage = {
-        {"sender", sender},
-        {"text", message},
-        {"timestamp", time(0)}
-    };
-    messages.push_back(newMessage);
-    writeMessages(messages);
-    
-    cout << "Message sent!\n";
-}
-
 int main() {
-    cout << "Server running on port 9001...\n";
-    string command;
-    
-    while (true) {
-        cout << "Enter command (messages/send): ";
-        cin >> command;
-        if (command == "messages") {
-            handleMessagesRequest();
-        } else if (command == "send") {
-            handleSendMessage();
+    uWS::App()
+    .get("/messages", [](auto *res, auto *req) {
+        json messages = readMessages();
+        res->writeHeader("Content-Type", "application/json");
+        res->end(messages.dump());
+    })
+    .post("/send", [](auto *res, auto *req) {
+        res->onData([res](std::string_view data, bool last) {
+            json received = json::parse(data);
+            json messages = readMessages();
+
+            json newMessage = {
+                {"sender", received["sender"]},
+                {"text", received["text"]}
+            };
+            messages.push_back(newMessage);
+            writeMessages(messages);
+
+            res->writeHeader("Content-Type", "application/json");
+            res->end(R"({"status": "Message sent!"})");
+        });
+    })
+    .listen(9001, [](auto *token) {
+        if (token) {
+            cout << "Server running on port 9001..." << endl;
         }
-    }
+    })
+    .run();
     
     return 0;
 }
