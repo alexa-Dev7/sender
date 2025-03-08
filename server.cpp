@@ -2,6 +2,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <uwebsockets/App.h>
+#include <cstdlib>  // For getenv()
 
 using namespace std;
 using json = nlohmann::json;
@@ -31,6 +32,9 @@ void writeMessages(const json& messages) {
 }
 
 int main() {
+    // Get port from environment variable (Render sets this)
+    int port = getenv("PORT") ? stoi(getenv("PORT")) : 10000;
+
     uWS::App()
     .get("/messages", [](auto *res, auto *req) {
         json messages = readMessages();
@@ -53,9 +57,11 @@ int main() {
             res->end(R"({"status": "Message sent!"})");
         });
     })
-    .listen(9001, [](auto *token) {
+    .listen(port, [port](auto *token) {
         if (token) {
-            cout << "Server running on port 9001..." << endl;
+            cout << "Server running on port " << port << "..." << endl;
+        } else {
+            cerr << "Failed to bind to port " << port << endl;
         }
     })
     .run();
