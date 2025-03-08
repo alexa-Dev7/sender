@@ -54,7 +54,7 @@ int main() {
     cout << "    chatWindow.appendChild(div);\n";
     cout << "  });\n";
     cout << "}\n";
-    cout << "setInterval(loadMessages, 3000);\n";
+    cout << "setInterval(loadMessages, 3000);\n"; // Short polling every 3 sec
     cout << "</script>\n";
     cout << "</body>\n";
     cout << "</html>\n";
