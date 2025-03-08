@@ -1,28 +1,38 @@
-# Use an official C++ image
+# Use an official lightweight C++ image
 FROM debian:latest
+
+# Set working directory
+WORKDIR /app
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
-    g++ \
     curl \
+    git \
+    g++ \
+    make \
+    cmake \
     libssl-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install nlohmann/json (JSON library)
-RUN curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
+RUN mkdir -p /usr/include/nlohmann && \
+    curl -L https://github.com/nlohmann/json/releases/latest/download/json.hpp -o /usr/include/nlohmann/json.hpp
 
-# Create an app directory
-WORKDIR /app
+# Install uWebSockets (required for real-time messaging)
+RUN curl -L https://github.com/uNetworking/uWebSockets/archive/refs/tags/v20.44.0.tar.gz -o uwebsockets.tar.gz && \
+    tar -xzf uwebsockets.tar.gz && \
+    cd uWebSockets-20.44.0 && \
+    make && make install && \
+    cd .. && rm -rf uwebsockets.tar.gz uWebSockets-20.44.0
 
-# Copy source files
-COPY server.cpp /app/server.cpp
-COPY ui.cpp /app/ui.cpp
+# Copy project files into container
+COPY sender /app
 
-# Compile the C++ files
-RUN g++ -std=c++17 -o server server.cpp -lssl -lz
-RUN g++ -std=c++17 -o ui ui.cpp -lssl -lz
+# Compile the project
+RUN g++ -o server sender/server.cpp -std=c++17 -luWS -lssl -lz -pthread
 
-# Expose correct port for Render
+# Expose port
 EXPOSE 10000
 
 # Run the server
