@@ -9,6 +9,7 @@
 using json = nlohmann::json;
 using namespace std;
 
+// ✅ Load messages from JSON file
 void loadMessages() {
     ifstream file("messages.json");
     json messages;
@@ -34,7 +35,10 @@ void loadMessages() {
 }
 
 int main() {
-    // Get the port from Render environment variable
+    // ✅ Fix: Ensure TERM environment variable is set correctly
+    setenv("TERM", "xterm-256color", 1);
+
+    // ✅ Get the port from Render environment variable
     const char* port = getenv("PORT");
     if (!port) port = "8080"; // Fallback if PORT isn't provided
 
