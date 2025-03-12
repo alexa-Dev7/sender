@@ -1,0 +1,4 @@
+{
+  "user1": { "password": "hashed_password" },
+  "user2": { "password": "another_hashed_password" }
+}
