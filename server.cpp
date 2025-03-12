@@ -1,44 +1,33 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <vector>
 #include <nlohmann/json.hpp>
-#include "encrypt.h"
-#include "utils.h"
-#include <thread>
 #include <chrono>
+#include <thread>
 
 using json = nlohmann::json;
+using namespace std;
 
-json loadMessages() {
-    std::ifstream file("messages.json");
+void loadMessages() {
+    ifstream file("messages.json");
     json messages;
     file >> messages;
-    return messages;
-}
 
-void saveMessages(const json &messages) {
-    std::ofstream file("messages.json");
-    file << messages.dump(4);
-}
+    system("clear");
+    cout << "🔥 Chat Room 🔥\n\n";
 
-void handleMessage(const std::string &sender, const std::string &receiver, const std::string &message) {
-    json messages = loadMessages();
-    std::string encryptedMsg = encryptMessage(message);
-    messages.push_back({{"sender", sender}, {"receiver", receiver}, {"message", encryptedMsg}});
-    saveMessages(messages);
-}
-
-void pollMessages() {
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        json messages = loadMessages();
-        std::cout << messages.dump(4) << std::endl;
+    for (auto& msg : messages) {
+        cout << msg["user"] << ": " << msg["text"] << endl;
     }
 }
 
 int main() {
-    std::cout << "Server running with short polling..." << std::endl;
-    pollMessages();
+    cout << "✅ Server started, short polling every 1 second...\n";
+
+    while (true) {
+        loadMessages();
+        this_thread::sleep_for(chrono::seconds(1));
+    }
+
     return 0;
 }
