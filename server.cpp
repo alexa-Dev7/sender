@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <thread>
+#include <cstdlib> // For getenv()
 
 using json = nlohmann::json;
 using namespace std;
@@ -12,7 +13,6 @@ void loadMessages() {
     ifstream file("messages.json");
     json messages;
 
-    // Check if file is empty or broken
     if (file.peek() == ifstream::traits_type::eof()) {
         messages = json::array();
     } else {
@@ -34,7 +34,11 @@ void loadMessages() {
 }
 
 int main() {
-    cout << "✅ Server started, short polling every 1 second...\n";
+    // Get the port from Render environment variable
+    const char* port = getenv("PORT");
+    if (!port) port = "8080"; // Fallback if PORT isn't provided
+
+    cout << "✅ Server started on port " << port << ", short polling every 1 second...\n";
 
     while (true) {
         loadMessages();
