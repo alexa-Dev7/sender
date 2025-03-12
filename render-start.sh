@@ -1,3 +1,5 @@
 #!/bin/bash
-./server &
-php -S 0.0.0.0:8080
+
+# ✅ Ensure environment variable works
+export TERM=xterm-256color
+./server
