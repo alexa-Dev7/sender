@@ -1,94 +1,85 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
+#include <vector>
+#include <ctime>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <thread>
-#include <cstdlib>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <bcrypt.h>  // For password hashing
+#include <openssl/sha.h>  // SHA256 for password hashing
+#include <unistd.h>        // Short polling
 
-using json = nlohmann::json;
-using namespace std;
+// SHA256 hashing function
+std::string hashPassword(const std::string& password) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)password.c_str(), password.length(), hash);
 
-// 🛠️ Hash a password with bcrypt
-string hashPassword(const string& password) {
-    char salt[BCRYPT_HASHSIZE];
-    char hash[BCRYPT_HASHSIZE];
-
-    if (bcrypt_gensalt(12, salt) != 0 || bcrypt_hashpw(password.c_str(), salt, hash) != 0) {
-        cerr << "❌ Error hashing password!\n";
-        return "";
+    std::ostringstream oss;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        oss << std::hex << (int)hash[i];
     }
-    return string(hash);
+    return oss.str();
 }
 
-// 🔒 Check if a password matches the stored hash
-bool verifyPassword(const string& password, const string& hash) {
-    return bcrypt_checkpw(password.c_str(), hash.c_str()) == 0;
+// Load user data
+nlohmann::json loadUsers() {
+    std::ifstream file("users.json");
+    nlohmann::json users;
+    if (file) file >> users;
+    return users;
 }
 
-// 🔥 Load and display messages
-void loadMessages() {
-    ifstream file("messages.json");
-    json messages;
-
-    if (file.peek() == ifstream::traits_type::eof()) {
-        messages = json::array();
-    } else {
-        file >> messages;
-    }
-
-    cout << "🔥 Chat Room 🔥\n\n";
-
-    if (messages.empty()) {
-        cout << "No messages yet. Start the conversation!\n";
-    } else {
-        for (auto& msg : messages) {
-            if (msg.contains("user") && msg.contains("text")) {
-                cout << msg["user"] << ": " << msg["text"] << endl;
-            }
-        }
-    }
+// Authenticate user
+bool authenticateUser(const std::string &username, const std::string &password) {
+    auto users = loadUsers();
+    return users.contains(username) && users[username]["password"] == hashPassword(password);
 }
 
-// 🚀 Main server setup — with port binding for Render
-int main() {
-    const char* portEnv = getenv("PORT");
-    int port = portEnv ? stoi(portEnv) : 8080;
+// Load and save messages
+nlohmann::json loadMessages() {
+    std::ifstream file("messages.json");
+    nlohmann::json messages;
+    if (file) file >> messages;
+    return messages;
+}
 
-    cout << "✅ Server started on port " << port << ", short polling every 1 second...\n";
+void saveMessage(const std::string& user, const std::string& msg) {
+    nlohmann::json messages = loadMessages();
+    messages.push_back({{"user", user}, {"message", msg}, {"time", std::time(0)}});
+    std::ofstream file("messages.json");
+    file << messages.dump(4);
+}
 
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) {
-        cerr << "❌ Error: Failed to create socket.\n";
-        return 1;
-    }
-
-    sockaddr_in server_addr{};
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
-
-    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        cerr << "❌ Error: Failed to bind to port " << port << ".\n";
-        return 1;
-    }
-
-    if (listen(server_fd, 10) < 0) {
-        cerr << "❌ Error: Failed to listen on port " << port << ".\n";
-        return 1;
-    }
-
-    cout << "🚀 Server is live and waiting for connections!\n";
-
+// Short polling chat room
+void chatRoom() {
+    std::cout << "✅ Server running on port 8080, polling every second...\n";
     while (true) {
-        loadMessages();
-        this_thread::sleep_for(chrono::seconds(1));
+        auto messages = loadMessages();
+        std::cout << "🔥 Chat Room 🔥\n";
+        if (!messages.empty()) {
+            for (const auto &msg : messages) {
+                std::cout << msg["user"] << ": " << msg["message"] << "\n";
+            }
+        } else {
+            std::cout << "No messages yet. Start chatting!\n";
+        }
+        sleep(1);
+    }
+}
+
+int main() {
+    std::string username, password;
+
+    std::cout << "Enter username: ";
+    std::cin >> username;
+    std::cout << "Enter password: ";
+    std::cin >> password;
+
+    if (authenticateUser(username, password)) {
+        std::cout << "✅ Login successful!\n";
+        chatRoom();
+    } else {
+        std::cout << "❌ Invalid username or password!\n";
     }
 
-    close(server_fd);
     return 0;
 }
