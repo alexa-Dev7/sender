@@ -1,4 +1,6 @@
 #include "utils.h"
-std::string hashPassword(const std::string &password) {
-    return "hashed_" + password;
+#include <bcrypt.h>
+
+std::string hash_password(const std::string& password) {
+    return bcrypt::generateHash(password);
 }
