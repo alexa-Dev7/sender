@@ -1,7 +1,7 @@
-# Use Ubuntu 22.04 LTS (more stable, supports bcrypt)
+# Use Ubuntu 22.04 for stability
 FROM ubuntu:22.04
 
-# Install necessary packages
+# Install necessary packages (OpenSSL for bcrypt-like hashing)
 RUN apt-get update && apt-get install -y g++ cmake git ca-certificates libssl-dev make
 
 # Clone nlohmann/json library
@@ -18,9 +18,8 @@ RUN cmake . && make
 ENV TERM=xterm
 ENV PORT=8080
 
-# Expose port for Render detection
+# Expose port for Render to detect
 EXPOSE 8080
 
 # Start the server
 CMD ["./server"]
-
