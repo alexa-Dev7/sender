@@ -1,8 +1,8 @@
-# Use Ubuntu
-FROM ubuntu:latest
+# Use Ubuntu 22.04 (LTS — stable and supports bcrypt properly)
+FROM ubuntu:22.04
 
 # Install necessary packages
-RUN apt-get update && apt-get install -y g++ cmake git ca-certificates libbcrypt-dev
+RUN apt-get update && apt-get install -y g++ cmake git ca-certificates libssl-dev make
 
 # Clone nlohmann/json library
 RUN git clone https://github.com/nlohmann/json.git /json
