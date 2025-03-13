@@ -1,85 +1,51 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <vector>
-#include <ctime>
 #include <nlohmann/json.hpp>
-#include <openssl/sha.h>  // SHA256 for password hashing
-#include <unistd.h>        // Short polling
+#include "encrypt.h"
+#include "utils.h"
+#include <uwebsockets/App.h>
 
-// SHA256 hashing function
-std::string hashPassword(const std::string& password) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*)password.c_str(), password.length(), hash);
+using json = nlohmann::json;
 
-    std::ostringstream oss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        oss << std::hex << (int)hash[i];
+const int POLL_INTERVAL = 1000;  // 1-second polling interval
+
+std::vector<std::string> get_active_users() {
+    std::ifstream file("sessions.json");
+    json sessions;
+    if (!file.is_open()) return {};
+    file >> sessions;
+
+    std::vector<std::string> active_users;
+    for (auto& session : sessions.items()) {
+        active_users.push_back(session.key());
     }
-    return oss.str();
+    return active_users;
 }
 
-// Load user data
-nlohmann::json loadUsers() {
-    std::ifstream file("users.json");
-    nlohmann::json users;
-    if (file) file >> users;
-    return users;
-}
-
-// Authenticate user
-bool authenticateUser(const std::string &username, const std::string &password) {
-    auto users = loadUsers();
-    return users.contains(username) && users[username]["password"] == hashPassword(password);
-}
-
-// Load and save messages
-nlohmann::json loadMessages() {
+std::string fetch_messages(const std::string& user) {
     std::ifstream file("messages.json");
-    nlohmann::json messages;
-    if (file) file >> messages;
-    return messages;
-}
+    json messages;
+    if (!file.is_open()) return "[]";
+    file >> messages;
 
-void saveMessage(const std::string& user, const std::string& msg) {
-    nlohmann::json messages = loadMessages();
-    messages.push_back({{"user", user}, {"message", msg}, {"time", std::time(0)}});
-    std::ofstream file("messages.json");
-    file << messages.dump(4);
-}
-
-// Short polling chat room
-void chatRoom() {
-    std::cout << "✅ Server running on port 8080, polling every second...\n";
-    while (true) {
-        auto messages = loadMessages();
-        std::cout << "🔥 Chat Room 🔥\n";
-        if (!messages.empty()) {
-            for (const auto &msg : messages) {
-                std::cout << msg["user"] << ": " << msg["message"] << "\n";
-            }
-        } else {
-            std::cout << "No messages yet. Start chatting!\n";
-        }
-        sleep(1);
-    }
+    std::string user_messages = messages.contains(user) ? messages[user].dump() : "[]";
+    return user_messages;
 }
 
 int main() {
-    std::string username, password;
-
-    std::cout << "Enter username: ";
-    std::cin >> username;
-    std::cout << "Enter password: ";
-    std::cin >> password;
-
-    if (authenticateUser(username, password)) {
-        std::cout << "✅ Login successful!\n";
-        chatRoom();
-    } else {
-        std::cout << "❌ Invalid username or password!\n";
-    }
+    uWS::App().get("/poll", [](auto *res, auto *req) {
+        std::string user = req->getQuery("user");
+        std::string response = fetch_messages(user);
+        res->end(response);
+    }).listen(9001, [](auto *token) {
+        if (token) {
+            std::cout << "✅ Server running on port 9001\n";
+        } else {
+            std::cerr << "❌ Failed to start server.\n";
+        }
+    }).run();
 
     return 0;
 }
