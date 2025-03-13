@@ -1,21 +1,25 @@
+# Use Ubuntu
 FROM ubuntu:latest
 
-# ✅ Update, install dependencies, and make sure git is included
-RUN apt-get update && apt-get install -y g++ cmake git ca-certificates
+# Install necessary packages
+RUN apt-get update && apt-get install -y g++ cmake git ca-certificates libbcrypt-dev
 
-# ✅ Clone nlohmann/json (now git will work!)
+# Clone nlohmann/json library
 RUN git clone https://github.com/nlohmann/json.git /json
 
-# ✅ Copy the source files into the container
+# Copy app code
 COPY . /app
 WORKDIR /app
 
-# ✅ Build the C++ server
+# Build the project
 RUN cmake . && make
 
-# ✅ Set environment variables
-ENV TERM=xterm  
-ENV PORT=9001
+# Set environment variables
+ENV TERM=xterm
+ENV PORT=8080
 
-# ✅ Start the server
+# Expose port for Render to detect
+EXPOSE 8080
+
+# Run the server
 CMD ["./server"]
