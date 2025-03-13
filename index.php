@@ -1,38 +1,48 @@
+<?php
+session_start();
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit();
+}
+?>
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>iOS Style Chat</title>
     <link rel="stylesheet" href="assets/reset.css">
     <link rel="stylesheet" href="assets/styles.css">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Mebe Messenger</title>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">iOS Messenger</div>
-        <div id="chat-box" class="chat-box"></div>
+    <div class="container">
+        <h2>Welcome, <?= htmlspecialchars($_SESSION['user']) ?></h2>
+        <div id="chat-box"></div>
+
         <input type="text" id="message" placeholder="Type a message...">
         <button onclick="sendMessage()">Send</button>
+        <a href="logout.php">Logout</a>
     </div>
 
     <script>
-        async function fetchMessages() {
-            const response = await fetch('messages.json');
-            const data = await response.json();
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = data.map(msg => 
-                `<div class="message ${msg.sender === 'you' ? 'sent' : 'received'}">${msg.message}</div>`
-            ).join('');
-            setTimeout(fetchMessages, 1000);
+        function fetchMessages() {
+            fetch(`/poll?user=<?= $_SESSION['user'] ?>`)
+                .then(response => response.json())
+                .then(data => {
+                    const chatBox = document.getElementById('chat-box');
+                    chatBox.innerHTML = data.map(msg => `<p>${msg}</p>`).join('');
+                });
         }
 
-        async function sendMessage() {
-            const message = document.getElementById('message').value;
-            await fetch('server.php', { method: 'POST', body: JSON.stringify({ message }) });
-            document.getElementById('message').value = "";
-        }
+        setInterval(fetchMessages, 1000);
 
-        fetchMessages();
+        function sendMessage() {
+            const msg = document.getElementById('message').value;
+            fetch('send_message.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            }).then(() => document.getElementById('message').value = "");
+        }
     </script>
 </body>
 </html>
