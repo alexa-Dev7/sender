@@ -1,19 +1,21 @@
 FROM ubuntu:latest
 
-# ✅ Install dependencies
-RUN apt-get update && apt-get install -y g++ cmake curl
+# ✅ Update, install dependencies, and make sure git is included
+RUN apt-get update && apt-get install -y g++ cmake git ca-certificates
 
-# ✅ Clone nlohmann/json
+# ✅ Clone nlohmann/json (now git will work!)
 RUN git clone https://github.com/nlohmann/json.git /json
 
-# ✅ Set working directory
+# ✅ Copy the source files into the container
+COPY . /app
 WORKDIR /app
 
-# ✅ Copy all files
-COPY . .
-
-# ✅ Compile the server
+# ✅ Build the C++ server
 RUN cmake . && make
 
-# ✅ Ensure TERM variable is set before starting
-CMD ["bash", "-c", "export TERM=xterm-256color && ./server"]
+# ✅ Set environment variables
+ENV TERM=xterm  
+ENV PORT=9001
+
+# ✅ Start the server
+CMD ["./server"]
